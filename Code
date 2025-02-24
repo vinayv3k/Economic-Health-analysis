@@ -1,0 +1,48 @@
+import requests
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Step 1: Data Collection (Example API Request to World Bank)
+def fetch_world_bank_data(indicator, country="WLD", start=2000, end=2023):
+    url = f"http://api.worldbank.org/v2/country/{country}/indicator/{indicator}?format=json&date={start}:{end}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        if len(data) > 1 and 'value' in data[1][0]:
+            return pd.DataFrame([{ 'year': entry['date'], 'value': entry['value'] } for entry in data[1]])
+    return pd.DataFrame()
+
+# Example: Fetch GDP per capita and Life Expectancy
+gdp_data = fetch_world_bank_data("NY.GDP.PCAP.CD")
+life_expectancy_data = fetch_world_bank_data("SP.DYN.LE00.IN")
+
+# Step 2: Data Cleaning and Merging
+df = pd.merge(gdp_data, life_expectancy_data, on='year', suffixes=('_gdp', '_life'))
+df.dropna(inplace=True)
+df = df.astype({'value_gdp': float, 'value_life': float})
+
+# Step 3: Statistical Analysis
+correlation = df[['value_gdp', 'value_life']].corr()
+print("Correlation between GDP per capita and Life Expectancy:")
+print(correlation)
+
+# Step 4: Data Visualization
+plt.figure(figsize=(10, 6))
+sns.scatterplot(data=df, x='value_gdp', y='value_life')
+plt.xlabel('GDP per Capita (USD)')
+plt.ylabel('Life Expectancy (Years)')
+plt.title('GDP per Capita vs Life Expectancy')
+plt.xscale('log')  # Log scale for better visualization
+plt.show()
+
+# Heatmap of Correlation
+plt.figure(figsize=(6, 4))
+sns.heatmap(correlation, annot=True, cmap='coolwarm', fmt='.2f')
+plt.title('Correlation Heatmap')
+plt.show()
+
+# Step 5: Save Results
+df.to_csv("economic_health_data.csv", index=False)
+print("Data saved as economic_health_data.csv")
